@@ -1,1 +1,6 @@
 .env
+target/
+.git
+.gitignore
+README.md
+*.md
