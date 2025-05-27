@@ -8,8 +8,8 @@ import java.util.List;
 
 @Repository
 public interface FormQuestionRepository extends JpaRepository<FormQuestion, Long> {
-    
-    List<FormQuestion> findByFormIdOrderByOrderAsc(Long formId);
-    
-    void deleteByFormId(Long formId);
+
+	List<FormQuestion> findByFormIdOrderByOrderAsc(Long formId);
+
+	void deleteByFormId(Long formId);
 }
