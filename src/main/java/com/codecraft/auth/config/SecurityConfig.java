@@ -57,6 +57,10 @@ public class SecurityConfig {
 						.requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/delete").permitAll()
 						.requestMatchers("/actuator/**").permitAll()
 						.requestMatchers("/api/public/**").permitAll()
+						.requestMatchers("/api/forms", "/api/forms/*").authenticated()
+						.requestMatchers("/api/forms/*/submit", "/api/forms/*/check-response").authenticated()
+						.requestMatchers("/api/forms/*/analytics").authenticated() // Admin check is done in controller
+						.requestMatchers("/api/admin/forms/**").authenticated() // Admin check is done in controller
 						.anyRequest().authenticated())
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
