@@ -21,6 +21,26 @@ public class AdminFormController {
 	@Autowired
 	private FormRepository formRepository;
 
+	@GetMapping
+	public ResponseEntity<?> getAllForms(Authentication authentication) {
+		if (authentication == null || !authentication.isAuthenticated()) {
+			Map<String, String> error = new HashMap<>();
+			error.put("error", "Usuário não autenticado");
+			return ResponseEntity.status(401).body(error);
+		}
+
+		// Verificar se é admin
+		String username = authentication.getName();
+		if (!"admin".equals(username)) {
+			Map<String, String> error = new HashMap<>();
+			error.put("error", "Acesso negado. Apenas administradores podem visualizar todos os formulários.");
+			return ResponseEntity.status(403).body(error);
+		}
+
+		List<Form> forms = formRepository.findAll();
+		return ResponseEntity.ok(forms);
+	}
+
 	public static class CreateFormRequest {
 		private String title;
 		private String description;
@@ -32,6 +52,7 @@ public class AdminFormController {
 			private Integer order;
 			private Boolean isRequired;
 			private String options;
+			private String[] optionsArray;
 
 			// Getters and Setters
 			public String getQuestionText() {
@@ -58,6 +79,14 @@ public class AdminFormController {
 				this.order = order;
 			}
 
+			public Integer getQuestionOrder() {
+				return order;
+			}
+
+			public void setQuestionOrder(Integer questionOrder) {
+				this.order = questionOrder;
+			}
+
 			public Boolean getIsRequired() {
 				return isRequired;
 			}
@@ -67,11 +96,25 @@ public class AdminFormController {
 			}
 
 			public String getOptions() {
-				return options;
+				if (options != null) {
+					return options;
+				}
+				if (optionsArray != null && optionsArray.length > 0) {
+					return String.join(",", optionsArray);
+				}
+				return null;
 			}
 
 			public void setOptions(String options) {
 				this.options = options;
+			}
+
+			public String[] getOptionsArray() {
+				return optionsArray;
+			}
+
+			public void setOptionsArray(String[] optionsArray) {
+				this.optionsArray = optionsArray;
 			}
 		}
 

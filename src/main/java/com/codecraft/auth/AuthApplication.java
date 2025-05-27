@@ -3,8 +3,12 @@ package com.codecraft.auth;
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = { "com.codecraft.auth", "com.codecraft.forms" })
+@EnableJpaRepositories(basePackages = { "com.codecraft.auth.repository", "com.codecraft.forms.repository" })
+@EntityScan(basePackages = { "com.codecraft.auth.entity", "com.codecraft.forms.entity" })
 public class AuthApplication {
 	public static void main(String[] args) {
 		try {
