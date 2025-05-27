@@ -69,4 +69,10 @@ public class AuthController {
 			}
 		}
 	}
+
+	@GetMapping("/users")
+	public ResponseEntity<?> getAllUsers() {
+		Object result = authService.getAllUsers();
+		return ResponseEntity.ok(result);
+	}
 }

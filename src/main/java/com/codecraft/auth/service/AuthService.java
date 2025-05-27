@@ -4,11 +4,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import com.codecraft.auth.entity.User;
 import com.codecraft.auth.repository.UserRepository;
 import com.codecraft.auth.dto.AuthResponse;
 import com.codecraft.auth.dto.ErrorResponse;
+import com.codecraft.auth.dto.UserDTO;
 
 @Service
 public class AuthService {
@@ -27,8 +30,8 @@ public class AuthService {
 		if (username == null || username.trim().isEmpty()) {
 			return new ErrorResponse("VALIDATION_ERROR", "Escreva seu Nome de Usuário!");
 		}
-		if (password == null || password.length() < 6) {
-			return new ErrorResponse("VALIDATION_ERROR", "A Senha Precisa ter no Minimo 6 Caractéres");
+		if (password == null || password.length() < 4) {
+			return new ErrorResponse("VALIDATION_ERROR", "A Senha Precisa ter no Minimo 4 Caractéres");
 		}
 
 		// Check if user exists
@@ -90,6 +93,23 @@ public class AuthService {
 			return new AuthResponse(null, username, "Usuário deletado com sucesso");
 		} catch (Exception e) {
 			return new ErrorResponse("DELETE_ERROR", "Erro ao deletar usuário: " + e.getMessage());
+		}
+	}
+
+	// Recupera todos os usuários cadastrados
+	public Object getAllUsers() {
+		try {
+			// Buscar todos os usuários
+			List<User> users = userRepository.findAll();
+
+			// Converter para DTOs para não expor senhas
+			List<UserDTO> userDTOs = users.stream()
+					.map(user -> new UserDTO(user.getId(), user.getUsername()))
+					.collect(Collectors.toList());
+
+			return userDTOs;
+		} catch (Exception e) {
+			return new ErrorResponse("FETCH_ERROR", "Erro ao buscar usuários: " + e.getMessage());
 		}
 	}
 }
