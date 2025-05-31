@@ -1,17 +1,18 @@
 package com.codecraft.auth.service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
-import java.util.stream.Collectors;
 
-import com.codecraft.auth.entity.User;
-import com.codecraft.auth.repository.UserRepository;
 import com.codecraft.auth.dto.AuthResponse;
 import com.codecraft.auth.dto.ErrorResponse;
 import com.codecraft.auth.dto.UserDTO;
+import com.codecraft.auth.entity.User;
+import com.codecraft.auth.repository.UserRepository;
 
 @Service
 public class AuthService {
@@ -25,7 +26,7 @@ public class AuthService {
 	@Autowired
 	private jwtUtil jwtUtil;
 
-	public Object register(String username, String password) {
+	public Object register(String username, String password, String userGroup) {
 		// Validate input
 		if (username == null || username.trim().isEmpty()) {
 			return new ErrorResponse("VALIDATION_ERROR", "Escreva seu Nome de Usuário!");
@@ -43,6 +44,7 @@ public class AuthService {
 		User user = new User();
 		user.setUsername(username);
 		user.setPassword(passwordEncoder.encode(password));
+		user.setUserGroup(userGroup); // Set user group
 		userRepository.save(user);
 
 		// Generate token
@@ -104,12 +106,16 @@ public class AuthService {
 
 			// Converter para DTOs para não expor senhas
 			List<UserDTO> userDTOs = users.stream()
-					.map(user -> new UserDTO(user.getId(), user.getUsername()))
+					.map(user -> new UserDTO(user.getId(), user.getUsername(), user.getUserGroup()))
 					.collect(Collectors.toList());
 
 			return userDTOs;
 		} catch (Exception e) {
 			return new ErrorResponse("FETCH_ERROR", "Erro ao buscar usuários: " + e.getMessage());
 		}
+	}
+
+	public User getUserByUsername(String username) {
+		return userRepository.findByUsername(username);
 	}
 }

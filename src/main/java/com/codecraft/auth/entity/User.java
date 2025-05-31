@@ -1,4 +1,3 @@
-
 package com.codecraft.auth.entity;
 
 import jakarta.persistence.Column;
@@ -20,6 +19,9 @@ public class User {
 
 	@Column(nullable = false)
 	private String password;
+
+	@Column
+	private String userGroup;
 
 	public Long getId() {
 		return id;
@@ -43,5 +45,13 @@ public class User {
 
 	public void setPassword(String password) {
 		this.password = password;
+	}
+
+	public String getUserGroup() {
+		return userGroup;
+	}
+
+	public void setUserGroup(String userGroup) {
+		this.userGroup = userGroup;
 	}
 }
