@@ -7,9 +7,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import com.codecraft.auth.entity.User;
 import com.codecraft.auth.repository.UserRepository;
 import com.codecraft.forms.dto.CreateFormDTO;
@@ -23,7 +25,6 @@ import com.codecraft.forms.entity.Form;
 import com.codecraft.forms.entity.Question;
 import com.codecraft.forms.entity.QuestionOption;
 import com.codecraft.forms.repository.FormRepository;
-import com.codecraft.forms.repository.QuestionOptionRepository;
 import com.codecraft.forms.repository.QuestionRepository;
 import com.codecraft.forms.repository.UserResponseRepository;
 
@@ -40,9 +41,6 @@ public class FormService {
 
 	@Autowired
 	private QuestionRepository questionRepository;
-
-	@Autowired
-	private QuestionOptionRepository questionOptionRepository;
 
 	public FormDTO createForm(CreateFormDTO createFormDTO, String username) {
 		User user = userRepository.findByUsername(username);
@@ -234,64 +232,101 @@ public class FormService {
 		Form form = formRepository.findById(formId).orElseThrow(() -> new RuntimeException("Form not found"));
 		List<Question> questions = questionRepository.findByFormId(formId);
 
-		int totalResponses = 0;
+		// Get total responses count for this form
+		int totalResponses = userResponseRepository.countByForm(form).intValue();
 		List<FormStatisticsDTO.QuestionStatisticsDTO> questionsAnalytics = new ArrayList<>();
 
-		// For each question, collect answer counts and text answers
+		// For each question, collect answer counts, text answers, and group breakdowns
 		for (Question question : questions) {
 			Map<String, Integer> answerCounts = new LinkedHashMap<>();
+			Map<String, Map<String, Integer>> answerCountsByGroup = new LinkedHashMap<>();
 			List<String> textAnswers = new ArrayList<>();
-
-			// Simulate fetching all answers for this question
-			// Replace this with your actual logic to fetch answers from DB
-			List<String> allAnswers = fetchAnswersForQuestion(question.getId());
 
 			if (question.getQuestionType().equalsIgnoreCase("MULTIPLE_CHOICE")
 					|| question.getQuestionType().equalsIgnoreCase("CHECKBOX")
 					|| question.getQuestionType().equalsIgnoreCase("RADIO")) {
-				// Count occurrences for each option
-				List<QuestionOption> options = questionOptionRepository.findByQuestionId(question.getId());
-				for (QuestionOption option : options) {
-					int count = (int) allAnswers.stream().filter(ans -> ans.equals(option.getText())).count();
-					answerCounts.put(option.getText(), count);
+
+				// Get option-based counts with group breakdown
+				List<Object[]> optionCounts = userResponseRepository.countResponsesByOption(question.getId());
+				List<Object[]> optionGroupCounts = userResponseRepository.countResponsesByOptionAndGroup(question.getId());
+
+				// Process overall counts
+				for (Object[] row : optionCounts) {
+					String optionText = (String) row[0];
+					Long count = (Long) row[1];
+					answerCounts.put(optionText, count.intValue());
 				}
+
+				// Process group-based counts
+				for (Object[] row : optionGroupCounts) {
+					String optionText = (String) row[0];
+					String userGroup = (String) row[1];
+					Long count = (Long) row[2];
+
+					answerCountsByGroup.computeIfAbsent(optionText, k -> new LinkedHashMap<>())
+							.put(userGroup != null ? userGroup : "Sem grupo", count.intValue());
+				}
+
 			} else if (question.getQuestionType().equalsIgnoreCase("NUMBER")
 					|| question.getQuestionType().equalsIgnoreCase("RATING")) {
-				// Count occurrences for each number/rating value
-				Map<String, Integer> valueCounts = new LinkedHashMap<>();
-				for (String ans : allAnswers) {
-					valueCounts.put(ans, valueCounts.getOrDefault(ans, 0) + 1);
+
+				// Get text-based counts (numbers/ratings stored as text) with group breakdown
+				List<Object[]> textCounts = userResponseRepository.countResponsesByText(question.getId());
+				List<Object[]> textGroupCounts = userResponseRepository.countResponsesByTextAndGroup(question.getId());
+
+				// Process overall counts
+				for (Object[] row : textCounts) {
+					String responseText = (String) row[0];
+					Long count = (Long) row[1];
+					answerCounts.put(responseText, count.intValue());
+					textAnswers.add(responseText);
 				}
-				answerCounts.putAll(valueCounts);
-				textAnswers.addAll(allAnswers);
+
+				// Process group-based counts
+				for (Object[] row : textGroupCounts) {
+					String responseText = (String) row[0];
+					String userGroup = (String) row[1];
+					Long count = (Long) row[2];
+
+					answerCountsByGroup.computeIfAbsent(responseText, k -> new LinkedHashMap<>())
+							.put(userGroup != null ? userGroup : "Sem grupo", count.intValue());
+				}
+
 			} else if (question.getQuestionType().equalsIgnoreCase("TEXT")
 					|| question.getQuestionType().equalsIgnoreCase("TEXTAREA")) {
-				textAnswers.addAll(allAnswers);
-			}
 
-			// For totalResponses, use the max number of answers for any question
-			totalResponses = Math.max(totalResponses, allAnswers.size());
+				// For text questions, just get all unique responses
+				List<Object[]> textCounts = userResponseRepository.countResponsesByText(question.getId());
+				List<Object[]> textGroupCounts = userResponseRepository.countResponsesByTextAndGroup(question.getId());
+
+				// Add all text responses
+				for (Object[] row : textCounts) {
+					String responseText = (String) row[0];
+					textAnswers.add(responseText);
+				}
+
+				// Process group-based counts for text answers
+				for (Object[] row : textGroupCounts) {
+					String responseText = (String) row[0];
+					String userGroup = (String) row[1];
+					Long count = (Long) row[2];
+
+					answerCountsByGroup.computeIfAbsent(responseText, k -> new LinkedHashMap<>())
+							.put(userGroup != null ? userGroup : "Sem grupo", count.intValue());
+				}
+			}
 
 			// Convert to FormStatisticsDTO.QuestionStatisticsDTO
 			FormStatisticsDTO.QuestionStatisticsDTO qStats = new FormStatisticsDTO.QuestionStatisticsDTO();
 			qStats.setQuestionId(question.getId());
 			qStats.setQuestionText(question.getQuestionText());
 			qStats.setQuestionType(question.getQuestionType());
-			qStats.setAnswerCounts(answerCounts); // Pass the full map of counts
+			qStats.setAnswerCounts(answerCounts);
+			qStats.setAnswerCountsByGroup(answerCountsByGroup);
 			qStats.setTextAnswers(textAnswers);
 			questionsAnalytics.add(qStats);
 		}
 
 		return new FormStatisticsDTO(form.getId(), form.getTitle(), totalResponses, questionsAnalytics);
-	}
-
-	// Dummy implementation for fetching answers, replace with your DB logic
-	private List<String> fetchAnswersForQuestion(Long questionId) {
-		// Use questionId to avoid unused parameter warning
-		// ...fetch from DB using questionId...
-		if (questionId == null) {
-			return new ArrayList<>();
-		}
-		return new ArrayList<>();
 	}
 }

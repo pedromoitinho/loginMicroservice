@@ -24,17 +24,26 @@ public interface UserResponseRepository extends JpaRepository<UserResponse, Long
 	@Query("SELECT ur.responseText, COUNT(ur) FROM UserResponse ur WHERE ur.question.id = :questionId AND ur.responseText IS NOT NULL GROUP BY ur.responseText")
 	List<Object[]> countResponsesByText(@Param("questionId") Long questionId);
 
-	// New queries for group-based analytics
-	@Query("SELECT ur.selectedOption.text, ur.userGroup, COUNT(ur) FROM UserResponse ur WHERE ur.question.id = :questionId AND ur.selectedOption IS NOT NULL AND ur.userGroup IS NOT NULL GROUP BY ur.selectedOption.text, ur.userGroup")
+	// New queries for group-based analytics - Include null userGroup as "Sem Grupo"
+	@Query("SELECT ur.selectedOption.text, COALESCE(ur.userGroup, 'Sem Grupo'), COUNT(ur) FROM UserResponse ur WHERE ur.question.id = :questionId AND ur.selectedOption IS NOT NULL GROUP BY ur.selectedOption.text, COALESCE(ur.userGroup, 'Sem Grupo')")
 	List<Object[]> countResponsesByOptionAndGroup(@Param("questionId") Long questionId);
 
-	@Query("SELECT ur.responseText, ur.userGroup, COUNT(ur) FROM UserResponse ur WHERE ur.question.id = :questionId AND ur.responseText IS NOT NULL AND ur.userGroup IS NOT NULL GROUP BY ur.responseText, ur.userGroup")
+	@Query("SELECT ur.responseText, COALESCE(ur.userGroup, 'Sem Grupo'), COUNT(ur) FROM UserResponse ur WHERE ur.question.id = :questionId AND ur.responseText IS NOT NULL GROUP BY ur.responseText, COALESCE(ur.userGroup, 'Sem Grupo')")
 	List<Object[]> countResponsesByTextAndGroup(@Param("questionId") Long questionId);
 
-	@Query("SELECT ur.userGroup, COUNT(DISTINCT ur.userIdentifier) FROM UserResponse ur WHERE ur.form.id = :formId AND ur.userGroup IS NOT NULL GROUP BY ur.userGroup")
+	@Query("SELECT COALESCE(ur.userGroup, 'Sem Grupo'), COUNT(DISTINCT ur.userIdentifier) FROM UserResponse ur WHERE ur.form.id = :formId GROUP BY COALESCE(ur.userGroup, 'Sem Grupo')")
 	List<Object[]> countRespondentsByGroup(@Param("formId") Long formId);
 
-	// New query to get all responses for a form with user group info
-	@Query("SELECT ur.question.id, ur.selectedOption.text, ur.userGroup, COUNT(ur) FROM UserResponse ur WHERE ur.form.id = :formId AND ur.selectedOption IS NOT NULL GROUP BY ur.question.id, ur.selectedOption.text, ur.userGroup")
+	// New query to get all responses for a form with user group info - Include null
+	// userGroup as "Sem Grupo"
+	@Query("SELECT ur.question.id, ur.selectedOption.text, COALESCE(ur.userGroup, 'Sem Grupo'), COUNT(ur) FROM UserResponse ur WHERE ur.form.id = :formId AND ur.selectedOption IS NOT NULL GROUP BY ur.question.id, ur.selectedOption.text, COALESCE(ur.userGroup, 'Sem Grupo')")
 	List<Object[]> countFormResponsesByOptionAndGroup(@Param("formId") Long formId);
+
+	// New queries for numeric and text responses by form and group - Include null
+	// userGroup as "Sem Grupo"
+	@Query("SELECT ur.question.id, ur.responseText, COALESCE(ur.userGroup, 'Sem Grupo'), COUNT(ur) FROM UserResponse ur WHERE ur.form.id = :formId AND ur.responseText IS NOT NULL GROUP BY ur.question.id, ur.responseText, COALESCE(ur.userGroup, 'Sem Grupo')")
+	List<Object[]> countFormResponsesByTextAndGroup(@Param("formId") Long formId);
+
+	@Query("SELECT ur.question.id, ur.responseNumber, COALESCE(ur.userGroup, 'Sem Grupo'), COUNT(ur) FROM UserResponse ur WHERE ur.form.id = :formId AND ur.responseNumber IS NOT NULL GROUP BY ur.question.id, ur.responseNumber, COALESCE(ur.userGroup, 'Sem Grupo')")
+	List<Object[]> countFormResponsesByNumberAndGroup(@Param("formId") Long formId);
 }

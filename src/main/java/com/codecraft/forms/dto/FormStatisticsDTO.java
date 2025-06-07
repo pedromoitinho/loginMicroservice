@@ -13,6 +13,7 @@ public class FormStatisticsDTO {
 		private String questionText;
 		private String questionType; // Keep as String for serialization
 		private java.util.Map<String, Integer> answerCounts;
+		private java.util.Map<String, java.util.Map<String, Integer>> answerCountsByGroup; // optionText -> group -> count
 		private List<String> textAnswers;
 		private Double averageRating;
 
@@ -46,6 +47,14 @@ public class FormStatisticsDTO {
 
 		public void setAnswerCounts(java.util.Map<String, Integer> answerCounts) {
 			this.answerCounts = answerCounts;
+		}
+
+		public java.util.Map<String, java.util.Map<String, Integer>> getAnswerCountsByGroup() {
+			return answerCountsByGroup;
+		}
+
+		public void setAnswerCountsByGroup(java.util.Map<String, java.util.Map<String, Integer>> answerCountsByGroup) {
+			this.answerCountsByGroup = answerCountsByGroup;
 		}
 
 		public List<String> getTextAnswers() {
