@@ -65,7 +65,38 @@ public class ResponseService {
 						.orElseThrow(() -> new Exception("Option not found"));
 				response.setSelectedOption(option);
 			} else if (responseDTO.getResponseText() != null) {
-				response.setResponseText(responseDTO.getResponseText());
+				// For RADIO and MULTIPLE_CHOICE questions, try to convert text back to option
+				// ID
+				if (question.getType() == com.codecraft.forms.type.QuestionType.RADIO ||
+						question.getType() == com.codecraft.forms.type.QuestionType.MULTIPLE_CHOICE ||
+						question.getType() == com.codecraft.forms.type.QuestionType.CHECKBOX) {
+
+					// Handle multiple choice (comma-separated values)
+					String[] optionTexts = responseDTO.getResponseText().split(",");
+					for (String optionText : optionTexts) {
+						optionText = optionText.trim();
+						if (!optionText.isEmpty()) {
+							// Find the option by text
+							QuestionOption option = optionRepository.findByQuestionIdAndText(question.getId(), optionText);
+							if (option != null) {
+								// Create a separate response for each selected option (for multiple choice)
+								UserResponse optionResponse = new UserResponse();
+								optionResponse.setForm(form);
+								optionResponse.setQuestion(question);
+								optionResponse.setUserIdentifier(submitDTO.getUserIdentifier());
+								optionResponse.setUserGroup(userGroup);
+								optionResponse.setSelectedOption(option);
+								userResponseRepository.save(optionResponse);
+							}
+						}
+					}
+					// Skip the save at the end for option-based questions since we saved individual
+					// responses
+					continue;
+				} else {
+					// For text-based questions, save as responseText
+					response.setResponseText(responseDTO.getResponseText());
+				}
 			} else if (responseDTO.getResponseNumber() != null) {
 				response.setResponseNumber(responseDTO.getResponseNumber());
 			}

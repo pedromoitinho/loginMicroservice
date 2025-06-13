@@ -55,6 +55,7 @@ public class FormService {
 			Question question = new Question();
 			question.setQuestionText(questionDTO.getQuestionText());
 			question.setType(questionDTO.getType());
+			question.setQuestionType(questionDTO.getType().toString()); // Set the string field too
 			question.setQuestionOrder(questionDTO.getQuestionOrder());
 			question.setForm(form);
 
@@ -188,6 +189,7 @@ public class FormService {
 				Question question = new Question();
 				question.setQuestionText(questionDTO.getQuestionText());
 				question.setType(questionDTO.getType());
+				question.setQuestionType(questionDTO.getType().toString()); // Set the string field too
 				question.setQuestionOrder(questionDTO.getQuestionOrder());
 				question.setForm(form);
 
@@ -326,13 +328,15 @@ public class FormService {
 			} else if (question.getQuestionType().equalsIgnoreCase("TEXT")
 					|| question.getQuestionType().equalsIgnoreCase("TEXTAREA")) {
 
-				// For text questions, just get all unique responses
+				// For text questions, get both unique responses and their counts
 				List<Object[]> textCounts = userResponseRepository.countResponsesByText(question.getId());
 				List<Object[]> textGroupCounts = userResponseRepository.countResponsesByTextAndGroup(question.getId());
 
-				// Add all text responses
+				// Process overall counts and populate both answerCounts and textAnswers
 				for (Object[] row : textCounts) {
 					String responseText = (String) row[0];
+					Long count = (Long) row[1];
+					answerCounts.put(responseText, count.intValue());
 					textAnswers.add(responseText);
 				}
 

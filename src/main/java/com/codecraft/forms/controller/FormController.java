@@ -1,6 +1,7 @@
 package com.codecraft.forms.controller;
 
 import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 import com.codecraft.auth.dto.ErrorResponse;
 import com.codecraft.forms.dto.CreateFormDTO;
 import com.codecraft.forms.dto.FormDTO;
@@ -89,7 +91,10 @@ public class FormController {
 	@SuppressWarnings("CallToPrintStackTrace")
 	public ResponseEntity<?> getFormStatistics(@PathVariable Long formId, Authentication auth) {
 		try {
-			FormStatisticsDTO stats = responseService.getFormStatistics(formId, auth.getName());
+			formService.getFormDetails(formId, auth.getName());
+
+			// Use FormService for better question type handling
+			FormStatisticsDTO stats = formService.getFormStatistics(formId);
 
 			return ResponseEntity.ok(stats);
 		} catch (Exception e) {
