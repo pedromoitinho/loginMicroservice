@@ -58,12 +58,13 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						// libera autenticação nessas rotas:
 						.requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/delete", "/actuator/**",
-								"/api/public/**", "/api/forms/public/**", "/api/forms/public-forms", "/api/forms/submit" // Permitir
-																															// envio
-																															// de
-																															// respostas
-																															// sem
-																															// autenticação
+								"/api/public/**", "/api/forms/public/**", "/api/forms/public-forms", "/api/forms/submit", // Permitir
+								// envio
+								// de
+								// respostas
+								// sem
+								// autenticação
+								"/api/ebook/download" // Permitir download do ebook sem autenticação
 						).permitAll()
 						// o resto requer autenticação
 						.requestMatchers("/api/forms/**").authenticated().anyRequest().authenticated())
