@@ -38,7 +38,7 @@ public class Question {
 	@JoinColumn(name = "form_id")
 	private Form form;
 
-	@OneToMany(mappedBy = "question", cascade = CascadeType.ALL)
+	@OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<QuestionOption> options = new ArrayList<>();
 
 	@Column(name = "question_type")

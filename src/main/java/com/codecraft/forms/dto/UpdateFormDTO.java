@@ -7,15 +7,18 @@ public class UpdateFormDTO {
 	private String description;
 	private Boolean isActive;
 	private List<CreateQuestionDTO> questions;
+	private String allowedGroups;
 
 	public UpdateFormDTO() {
 	}
 
-	public UpdateFormDTO(String title, String description, Boolean isActive, List<CreateQuestionDTO> questions) {
+	public UpdateFormDTO(String title, String description, Boolean isActive, List<CreateQuestionDTO> questions,
+			String allowedGroups) {
 		this.title = title;
 		this.description = description;
 		this.isActive = isActive;
 		this.questions = questions;
+		this.allowedGroups = allowedGroups;
 	}
 
 	public String getTitle() {
@@ -48,5 +51,13 @@ public class UpdateFormDTO {
 
 	public void setQuestions(List<CreateQuestionDTO> questions) {
 		this.questions = questions;
+	}
+
+	public String getAllowedGroups() {
+		return allowedGroups;
+	}
+
+	public void setAllowedGroups(String allowedGroups) {
+		this.allowedGroups = allowedGroups;
 	}
 }

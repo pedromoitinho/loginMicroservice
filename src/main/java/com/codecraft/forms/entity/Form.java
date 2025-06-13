@@ -42,7 +42,7 @@ public class Form {
 	@Column(nullable = false)
 	private Boolean isActive = true;
 
-	@OneToMany(mappedBy = "form", cascade = CascadeType.ALL)
+	@OneToMany(mappedBy = "form", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<Question> questions = new ArrayList<>();
 
 	@Column(name = "allowed_groups")

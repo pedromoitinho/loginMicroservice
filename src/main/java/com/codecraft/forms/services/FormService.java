@@ -152,6 +152,7 @@ public class FormService {
 	}
 
 	// Atualizar formulário
+	@Transactional
 	public FormDTO updateForm(Long formId, UpdateFormDTO updateFormDTO, String username) {
 		Form form = formRepository.findById(formId)
 				.orElseThrow(() -> new RuntimeException("Formulário não encontrado"));
@@ -171,6 +172,36 @@ public class FormService {
 		}
 		if (updateFormDTO.getIsActive() != null) {
 			form.setIsActive(updateFormDTO.getIsActive());
+		}
+		if (updateFormDTO.getAllowedGroups() != null) {
+			form.setAllowedGroups(updateFormDTO.getAllowedGroups());
+		} // Atualizar perguntas se fornecidas
+		if (updateFormDTO.getQuestions() != null) {
+			// Remover perguntas antigas explicitamente
+			form.getQuestions().clear();
+
+			// Força o flush para garantir que as perguntas antigas sejam deletadas
+			formRepository.saveAndFlush(form);
+
+			// Adicionar novas perguntas
+			for (CreateQuestionDTO questionDTO : updateFormDTO.getQuestions()) {
+				Question question = new Question();
+				question.setQuestionText(questionDTO.getQuestionText());
+				question.setType(questionDTO.getType());
+				question.setQuestionOrder(questionDTO.getQuestionOrder());
+				question.setForm(form);
+
+				if (questionDTO.getOptions() != null) {
+					for (int i = 0; i < questionDTO.getOptions().size(); i++) {
+						QuestionOption option = new QuestionOption();
+						option.setText(questionDTO.getOptions().get(i));
+						option.setOptionOrder(i);
+						option.setQuestion(question);
+						question.getOptions().add(option);
+					}
+				}
+				form.getQuestions().add(question);
+			}
 		}
 
 		Form savedForm = formRepository.save(form);
