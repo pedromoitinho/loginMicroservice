@@ -1,9 +1,12 @@
 package com.codecraft.auth;
 
+import java.util.TimeZone;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+
 import io.github.cdimascio.dotenv.Dotenv;
 
 @SpringBootApplication(scanBasePackages = { "com.codecraft.auth", "com.codecraft.forms" })
@@ -12,6 +15,9 @@ import io.github.cdimascio.dotenv.Dotenv;
 public class AuthApplication {
 	@SuppressWarnings("UseSpecificCatch")
 	public static void main(String[] args) {
+		// Set default timezone for the entire application to Recife timezone
+		TimeZone.setDefault(TimeZone.getTimeZone("America/Recife"));
+
 		try {
 			// Try to load .env file (for local development)
 			Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();

@@ -31,6 +31,7 @@ public class EbookDownload {
 	public EbookDownload(String email, String companyName) {
 		this.email = email;
 		this.companyName = companyName;
+		// Set download date using the application's default timezone (America/Recife)
 		this.downloadDate = LocalDateTime.now();
 	}
 
