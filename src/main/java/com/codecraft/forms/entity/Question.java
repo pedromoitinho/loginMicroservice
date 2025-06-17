@@ -29,6 +29,7 @@ public class Question {
 	private String questionText;
 
 	@Enumerated(EnumType.STRING)
+	@Column(name = "type")
 	private QuestionType type;
 
 	@Column
@@ -66,6 +67,11 @@ public class Question {
 
 	public void setType(QuestionType type) {
 		this.type = type;
+		// Only update questionType string if type is not null and there's no infinite
+		// loop
+		if (type != null) {
+			this.questionType = type.name();
+		}
 	}
 
 	public Integer getQuestionOrder() {
@@ -93,11 +99,27 @@ public class Question {
 	}
 
 	public String getQuestionType() {
+		// If questionType is null but type enum is set, return the enum name
+		if (questionType == null && type != null) {
+			return type.name();
+		}
 		return questionType;
 	}
 
 	public void setQuestionType(String questionType) {
 		this.questionType = questionType;
+		// Only update type enum if questionType is not null and to avoid infinite loop
+		if (questionType != null) {
+			try {
+				// This prevents circular updates by checking if type already matches
+				QuestionType newType = QuestionType.valueOf(questionType);
+				if (this.type != newType) {
+					this.type = newType;
+				}
+			} catch (IllegalArgumentException e) {
+				// Handle case where string doesn't match an enum value
+				this.type = QuestionType.TEXT; // Default to TEXT
+			}
+		}
 	}
-
 }

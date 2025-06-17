@@ -69,7 +69,10 @@ public class ResponseService {
 				// ID
 				if (question.getType() == com.codecraft.forms.type.QuestionType.RADIO ||
 						question.getType() == com.codecraft.forms.type.QuestionType.MULTIPLE_CHOICE ||
-						question.getType() == com.codecraft.forms.type.QuestionType.CHECKBOX) {
+						question.getType() == com.codecraft.forms.type.QuestionType.CHECKBOX ||
+						"RADIO".equalsIgnoreCase(question.getQuestionType()) ||
+						"MULTIPLE_CHOICE".equalsIgnoreCase(question.getQuestionType()) ||
+						"CHECKBOX".equalsIgnoreCase(question.getQuestionType())) {
 
 					// Handle multiple choice (comma-separated values)
 					String[] optionTexts = responseDTO.getResponseText().split(",");
@@ -186,7 +189,19 @@ public class ResponseService {
 
 			// Process based on question type
 			switch (question.getType()) {
-				case MULTIPLE_CHOICE, CHECKBOX, RADIO -> {
+				case MULTIPLE_CHOICE, CHECKBOX, RADIO, EMAIL, DATE -> {
+					// For EMAIL, DATE - handle same as RADIO if they're one of the choice types
+					if (question.getType() == com.codecraft.forms.type.QuestionType.EMAIL ||
+							question.getType() == com.codecraft.forms.type.QuestionType.DATE) {
+						// Just to avoid errors, check the questionType string to see if we should treat
+						// it as multiple choice
+						if (!"MULTIPLE_CHOICE".equalsIgnoreCase(question.getQuestionType()) &&
+								!"CHECKBOX".equalsIgnoreCase(question.getQuestionType()) &&
+								!"RADIO".equalsIgnoreCase(question.getQuestionType())) {
+							// Handle as text-based question later
+							break;
+						}
+					}
 					// Get all options for this question to preserve order
 					@SuppressWarnings("unused")
 					List<QuestionOption> allOptions = optionRepository.findByQuestionId(question.getId());

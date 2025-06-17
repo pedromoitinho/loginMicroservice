@@ -8,6 +8,7 @@ public class QuestionDTO {
 	private String type;
 	private Integer questionOrder;
 	private List<QuestionOptionDTO> options;
+	private String questionType; // Added questionType field to match entity
 
 	public QuestionDTO() {
 	}
@@ -16,6 +17,7 @@ public class QuestionDTO {
 		this.id = id;
 		this.questionText = questionText;
 		this.type = type;
+		this.questionType = type; // Set both for consistency
 		this.questionOrder = questionOrder;
 	}
 
@@ -41,6 +43,19 @@ public class QuestionDTO {
 
 	public void setType(String type) {
 		this.type = type;
+		this.questionType = type; // Update both for consistency
+	}
+
+	public String getQuestionType() {
+		return questionType != null ? questionType : type;
+	}
+
+	public void setQuestionType(String questionType) {
+		this.questionType = questionType;
+		// Only update type if it's not already set
+		if (this.type == null) {
+			this.type = questionType;
+		}
 	}
 
 	public Integer getQuestionOrder() {

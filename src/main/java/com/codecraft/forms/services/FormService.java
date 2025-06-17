@@ -43,6 +43,7 @@ public class FormService {
 	private QuestionRepository questionRepository;
 
 	public FormDTO createForm(CreateFormDTO createFormDTO, String username) {
+		System.out.println("📝 FormService.createForm called");
 		User user = userRepository.findByUsername(username);
 
 		Form form = new Form();
@@ -54,28 +55,45 @@ public class FormService {
 		for (CreateQuestionDTO questionDTO : createFormDTO.getQuestions()) {
 			Question question = new Question();
 			question.setQuestionText(questionDTO.getQuestionText());
-			question.setType(questionDTO.getType());
-			question.setQuestionType(questionDTO.getType().toString()); // Set the string field too
+
+			// Ensure type is properly set - first set the enum, which will automatically
+			// set questionType
+			try {
+				question.setType(questionDTO.getType());
+				System.out.println(String.format("✅ Question type set to '%s'", question.getType()));
+			} catch (Exception e) {
+				System.out.println(String.format("⚠️ Error setting question type: %s, defaulting to TEXT", e.getMessage()));
+				question.setType(com.codecraft.forms.type.QuestionType.TEXT);
+			}
+
 			question.setQuestionOrder(questionDTO.getQuestionOrder());
 			question.setForm(form);
 
 			if (questionDTO.getOptions() != null) {
+				System.out.println(String.format("📋 Processing %d options for question", questionDTO.getOptions().size()));
 				for (int i = 0; i < questionDTO.getOptions().size(); i++) {
 					QuestionOption option = new QuestionOption();
 					option.setText(questionDTO.getOptions().get(i));
 					option.setOptionOrder(i);
 					option.setQuestion(question);
 					question.getOptions().add(option);
+					System.out.println(String.format("  🔘 Added option %d: '%s'", i + 1, questionDTO.getOptions().get(i)));
 				}
 			}
 			form.getQuestions().add(question);
+			System.out.println(
+					String.format("➕ Added question: '%s' (Type: %s)", question.getQuestionText(), question.getType()));
 		}
 
+		System.out.println("💾 Saving form with " + form.getQuestions().size() + " questions");
 		Form savedForm = formRepository.save(form);
+		System.out.println("✅ Form saved successfully");
+
 		return convertToDTO(savedForm);
 	}
 
 	private FormDTO convertToDTO(Form form) {
+		System.out.println("🔄 Converting Form to DTO - Form ID: " + form.getId());
 		FormDTO dto = new FormDTO();
 		dto.setId(form.getId());
 		dto.setTitle(form.getTitle());
@@ -86,16 +104,42 @@ public class FormService {
 		dto.setAllowedGroups(form.getAllowedGroups());
 		// Map questions and their options
 		if (form.getQuestions() != null) {
+			System.out.println("📋 Converting " + form.getQuestions().size() + " questions to DTO");
 			List<QuestionDTO> questionDTOs = form.getQuestions().stream()
 					.sorted(Comparator.comparing(Question::getQuestionOrder)).map(question -> {
+						System.out.println(String.format(
+								"  📝 Converting Question ID=%d, Text='%s', Type=%s, QuestionType='%s', Options=%d",
+								question.getId(), question.getQuestionText(), question.getType(), question.getQuestionType(),
+								question.getOptions() != null ? question.getOptions().size() : 0));
+
+						// Use questionType string field as primary, fallback to enum if needed
+						String questionTypeString = question.getQuestionType();
+						if (questionTypeString == null || questionTypeString.isEmpty()) {
+							questionTypeString = question.getType() != null ? question.getType().name() : "TEXT";
+							System.out.println(
+									String.format("    ⚠️ Question %d: questionType was null/empty, using enum fallback: %s",
+											question.getId(), questionTypeString));
+						}
+
 						QuestionDTO qDto = new QuestionDTO(question.getId(), question.getQuestionText(),
-								question.getType().name(), question.getQuestionOrder());
+								questionTypeString, question.getQuestionOrder());
+
+						// Explicitly set both type and questionType for clarity
+						qDto.setType(questionTypeString);
+						qDto.setQuestionType(questionTypeString);
+
 						if (question.getOptions() != null) {
 							List<QuestionOptionDTO> optionDTOs = question.getOptions().stream()
 									.sorted(Comparator.comparing(QuestionOption::getOptionOrder))
-									.map(opt -> new QuestionOptionDTO(opt.getId(), opt.getText(), opt.getOptionOrder()))
+									.map(opt -> {
+										System.out.println(String.format("    🔘 Converting Option ID=%d, Text='%s', Order=%d",
+												opt.getId(), opt.getText(), opt.getOptionOrder()));
+										return new QuestionOptionDTO(opt.getId(), opt.getText(), opt.getOptionOrder());
+									})
 									.collect(Collectors.toList());
 							qDto.setOptions(optionDTOs);
+						} else {
+							System.out.println("    🚫 No options for this question");
 						}
 						return qDto;
 					}).collect(Collectors.toList());
@@ -104,6 +148,8 @@ public class FormService {
 			dto.setQuestions(Collections.emptyList());
 		}
 
+		System.out.println("✅ Form conversion completed - DTO questions count: " +
+				(dto.getQuestions() != null ? dto.getQuestions().size() : 0));
 		return dto;
 	}
 
@@ -127,9 +173,27 @@ public class FormService {
 
 	// Obter formulário público (para responder)
 	public FormDTO getPublicForm(Long formId) {
+		System.out.println("🔍 getPublicForm called for formId: " + formId);
+
 		Form form = formRepository.findById(formId)
 				.orElseThrow(() -> new RuntimeException("Formulário não encontrado"));
-		return convertToDTO(form);
+
+		System.out.println("📋 Public form found in database:");
+		System.out.println(String.format("  Form ID: %d, Title: '%s', Questions: %d",
+				form.getId(), form.getTitle(), form.getQuestions().size()));
+
+		for (int i = 0; i < form.getQuestions().size(); i++) {
+			Question q = form.getQuestions().get(i);
+			System.out.println(String.format("  Question %d: ID=%d, Text='%s', Type=%s, Options=%d",
+					i + 1, q.getId(), q.getQuestionText(), q.getType(),
+					q.getOptions() != null ? q.getOptions().size() : 0));
+		}
+
+		FormDTO result = convertToDTO(form);
+		System.out.println("✅ getPublicForm completed, returning DTO with " +
+				(result.getQuestions() != null ? result.getQuestions().size() : 0) + " questions");
+
+		return result;
 	}
 
 	// Obter todos os formulários (admin only)
@@ -140,8 +204,30 @@ public class FormService {
 
 	// Obter detalhes do formulário (protegido)
 	public FormDTO getFormDetails(Long formId, String username) {
+		System.out.println("🔍 getFormDetails called for formId: " + formId + ", username: " + username);
+
 		Form form = formRepository.findById(formId)
 				.orElseThrow(() -> new RuntimeException("Formulário não encontrado"));
+
+		System.out.println("📋 Form found in database:");
+		System.out.println(String.format("  Form ID: %d, Title: '%s', Questions: %d",
+				form.getId(), form.getTitle(), form.getQuestions().size()));
+
+		// Log detailed question information
+		for (int i = 0; i < form.getQuestions().size(); i++) {
+			Question q = form.getQuestions().get(i);
+			System.out.println(String.format("  Question %d: ID=%d, Text='%s', Type=%s, Options=%d",
+					i + 1, q.getId(), q.getQuestionText(), q.getType(),
+					q.getOptions() != null ? q.getOptions().size() : 0));
+
+			if (q.getOptions() != null && q.getOptions().size() > 0) {
+				for (int j = 0; j < q.getOptions().size(); j++) {
+					QuestionOption opt = q.getOptions().get(j);
+					System.out.println(String.format("    Option %d: ID=%d, Text='%s'",
+							j + 1, opt.getId(), opt.getText()));
+				}
+			}
+		}
 
 		// Verificar se o usuário é o dono do formulário ou admin
 		if (!"admin".equals(username)
@@ -149,12 +235,32 @@ public class FormService {
 			throw new RuntimeException("Acesso negado");
 		}
 
-		return convertToDTO(form);
+		FormDTO result = convertToDTO(form);
+		System.out.println("✅ getFormDetails completed, returning DTO with " +
+				(result.getQuestions() != null ? result.getQuestions().size() : 0) + " questions");
+
+		return result;
 	}
 
 	// Atualizar formulário
 	@Transactional
 	public FormDTO updateForm(Long formId, UpdateFormDTO updateFormDTO, String username) {
+		System.out.println("🔄 FormService.updateForm called with formId: " + formId);
+		System.out.println("📝 UpdateFormDTO received: " + updateFormDTO);
+
+		if (updateFormDTO.getQuestions() != null) {
+			System.out.println("📋 Questions in update request: " + updateFormDTO.getQuestions().size());
+			for (int i = 0; i < updateFormDTO.getQuestions().size(); i++) {
+				CreateQuestionDTO q = updateFormDTO.getQuestions().get(i);
+				System.out.println(String.format("  Question %d: text='%s', type=%s, hasOptions=%s, optionsCount=%d",
+						i + 1,
+						q.getQuestionText(),
+						q.getType(),
+						q.getOptions() != null,
+						q.getOptions() != null ? q.getOptions().size() : 0));
+			}
+		}
+
 		Form form = formRepository.findById(formId)
 				.orElseThrow(() -> new RuntimeException("Formulário não encontrado"));
 
@@ -176,38 +282,122 @@ public class FormService {
 		}
 		if (updateFormDTO.getAllowedGroups() != null) {
 			form.setAllowedGroups(updateFormDTO.getAllowedGroups());
-		} // Atualizar perguntas se fornecidas
+		}
+
+		// Atualizar perguntas se fornecidas
 		if (updateFormDTO.getQuestions() != null) {
+			System.out.println("🗑️ Clearing existing questions from form");
 			// Remover perguntas antigas explicitamente
 			form.getQuestions().clear();
 
 			// Força o flush para garantir que as perguntas antigas sejam deletadas
 			formRepository.saveAndFlush(form);
 
+			System.out.println("➕ Adding new questions to form");
 			// Adicionar novas perguntas
-			for (CreateQuestionDTO questionDTO : updateFormDTO.getQuestions()) {
+			for (int i = 0; i < updateFormDTO.getQuestions().size(); i++) {
+				CreateQuestionDTO questionDTO = updateFormDTO.getQuestions().get(i);
+				System.out.println(String.format("  Creating question %d: '%s' (type: %s)",
+						i + 1, questionDTO.getQuestionText(), questionDTO.getType()));
+
 				Question question = new Question();
 				question.setQuestionText(questionDTO.getQuestionText());
-				question.setType(questionDTO.getType());
-				question.setQuestionType(questionDTO.getType().toString()); // Set the string field too
+
+				// Ensure type is properly set - first set the enum which will automatically set
+				// questionType
+				try {
+					question.setType(questionDTO.getType());
+					System.out.println(String.format("  ✅ Question type set to '%s'", question.getType()));
+				} catch (Exception e) {
+					System.out.println(
+							String.format("  ⚠️ Error setting question type: %s, defaulting to TEXT", e.getMessage()));
+					question.setType(com.codecraft.forms.type.QuestionType.TEXT);
+				}
+
 				question.setQuestionOrder(questionDTO.getQuestionOrder());
 				question.setForm(form);
 
-				if (questionDTO.getOptions() != null) {
-					for (int i = 0; i < questionDTO.getOptions().size(); i++) {
+				System.out.println(
+						String.format("  ✅ Question created - ID: null, Text: '%s', Type: %s, TypeString: %s",
+								question.getQuestionText(), question.getType(), question.getQuestionType()));
+
+				if (questionDTO.getOptions() != null && questionDTO.getOptions().size() > 0) {
+					System.out.println(String.format("    Adding %d options to question %d",
+							questionDTO.getOptions().size(), i + 1));
+					for (int j = 0; j < questionDTO.getOptions().size(); j++) {
 						QuestionOption option = new QuestionOption();
-						option.setText(questionDTO.getOptions().get(i));
-						option.setOptionOrder(i);
+						option.setText(questionDTO.getOptions().get(j));
+						option.setOptionOrder(j);
 						option.setQuestion(question);
 						question.getOptions().add(option);
+						System.out.println(String.format("      Option %d: '%s'", j + 1, questionDTO.getOptions().get(j)));
 					}
+				} else {
+					System.out.println(String.format("    Question %d has no options", i + 1));
 				}
 				form.getQuestions().add(question);
+
+				System.out.println(String.format("    ➕ Question %d added to form. Form now has %d questions",
+						i + 1, form.getQuestions().size()));
 			}
 		}
 
-		Form savedForm = formRepository.save(form);
-		return convertToDTO(savedForm);
+		System.out.println("💾 Saving updated form");
+		Form savedForm = formRepository.saveAndFlush(form);
+		System.out.println("✅ Form saved and flushed to database");
+
+		System.out.println("🔍 Verifying saved form data:");
+		System.out.println(String.format("  Form ID: %d, Questions count: %d",
+				savedForm.getId(), savedForm.getQuestions().size()));
+
+		for (int i = 0; i < savedForm.getQuestions().size(); i++) {
+			Question q = savedForm.getQuestions().get(i);
+			System.out.println(
+					String.format("  Saved Question %d: ID=%d, Text='%s', Type (enum)=%s, Type (string)='%s', Options=%d",
+							i + 1, q.getId(), q.getQuestionText(), q.getType(), q.getQuestionType(),
+							q.getOptions() != null ? q.getOptions().size() : 0));
+
+			// Log the options too
+			if (q.getOptions() != null && q.getOptions().size() > 0) {
+				for (int j = 0; j < q.getOptions().size(); j++) {
+					QuestionOption opt = q.getOptions().get(j);
+					System.out.println(String.format("    Option %d: ID=%d, Text='%s', Order=%d",
+							j + 1, opt.getId(), opt.getText(), opt.getOptionOrder()));
+				}
+			}
+		}
+
+		FormDTO result = convertToDTO(savedForm);
+		System.out.println("✅ Form updated successfully. Result questions count: " +
+				(result.getQuestions() != null ? result.getQuestions().size() : 0));
+
+		System.out.println("🔍 Final DTO verification:");
+		if (result.getQuestions() != null) {
+			for (int i = 0; i < result.getQuestions().size(); i++) {
+				QuestionDTO q = result.getQuestions().get(i);
+				System.out.println(String.format("  DTO Question %d: ID=%d, Text='%s', Type='%s', Options=%d",
+						i + 1, q.getId(), q.getQuestionText(), q.getType(),
+						q.getOptions() != null ? q.getOptions().size() : 0));
+			}
+		}
+
+		// 🔍 EXTRA VALIDATION: Re-fetch the form from database to verify persistence
+		System.out.println("🔍 EXTRA VALIDATION: Re-fetching form from database to verify persistence...");
+		Form reloadedForm = formRepository.findById(formId)
+				.orElseThrow(() -> new RuntimeException("Form not found after update"));
+
+		System.out.println("📋 Reloaded form verification:");
+		System.out.println(String.format("  Form ID: %d, Questions count: %d",
+				reloadedForm.getId(), reloadedForm.getQuestions().size()));
+
+		for (int i = 0; i < reloadedForm.getQuestions().size(); i++) {
+			Question q = reloadedForm.getQuestions().get(i);
+			System.out.println(String.format("  Reloaded Question %d: ID=%d, Text='%s', Type=%s, Options=%d",
+					i + 1, q.getId(), q.getQuestionText(), q.getType(),
+					q.getOptions() != null ? q.getOptions().size() : 0));
+		}
+
+		return result;
 	}
 
 	public List<FormDTO> getPublicForms() {

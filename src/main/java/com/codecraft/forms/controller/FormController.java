@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.codecraft.auth.dto.ErrorResponse;
 import com.codecraft.forms.dto.CreateFormDTO;
+import com.codecraft.forms.dto.CreateQuestionDTO;
 import com.codecraft.forms.dto.FormDTO;
 import com.codecraft.forms.dto.FormStatisticsDTO;
 import com.codecraft.forms.dto.SubmitResponseDTO;
@@ -135,9 +136,25 @@ public class FormController {
 	public ResponseEntity<?> updateForm(@PathVariable Long formId, @RequestBody UpdateFormDTO updateFormDTO,
 			Authentication auth) {
 		try {
+			System.out.println("🔄 FormController.updateForm called");
+			System.out.println("📥 Received UpdateFormDTO:");
+			System.out.println(String.format("  Title: '%s'", updateFormDTO.getTitle()));
+			System.out.println(String.format("  Questions count: %d",
+					updateFormDTO.getQuestions() != null ? updateFormDTO.getQuestions().size() : 0));
+
+			if (updateFormDTO.getQuestions() != null) {
+				for (int i = 0; i < updateFormDTO.getQuestions().size(); i++) {
+					CreateQuestionDTO q = updateFormDTO.getQuestions().get(i);
+					System.out.println(String.format("    Question %d: text='%s', type=%s",
+							i + 1, q.getQuestionText(), q.getType()));
+				}
+			}
+
 			FormDTO form = formService.updateForm(formId, updateFormDTO, auth.getName());
 			return ResponseEntity.ok(form);
 		} catch (Exception e) {
+			System.err.println("❌ Error updating form: " + e.getMessage());
+			e.printStackTrace();
 			return ResponseEntity.badRequest().body(new ErrorResponse("UPDATE_ERROR", e.getMessage()));
 		}
 	}
