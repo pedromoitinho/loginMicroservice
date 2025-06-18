@@ -26,7 +26,7 @@ public class AuthService {
 	@Autowired
 	private jwtUtil jwtUtil;
 
-	public Object register(String username, String password, String userGroup) {
+	public Object register(String username, String password, String userGroup, String email, String setor) {
 		// Validate input
 		if (username == null || username.trim().isEmpty()) {
 			return new ErrorResponse("VALIDATION_ERROR", "Escreva seu Nome de Usuário!");
@@ -35,9 +35,22 @@ public class AuthService {
 			return new ErrorResponse("VALIDATION_ERROR", "A Senha Precisa ter no Minimo 4 Caractéres");
 		}
 
+		// Set default values if not provided
+		if (setor == null || setor.trim().isEmpty()) {
+			setor = "Não informado";
+		}
+		if (email == null || email.trim().isEmpty()) {
+			email = null; // Allow null emails
+		}
+
 		// Check if user exists
 		if (userRepository.findByUsername(username) != null) {
 			return new ErrorResponse("USER_EXISTS", "Esse Nome já Existe");
+		}
+
+		// Check if email exists (if provided)
+		if (email != null && !email.trim().isEmpty() && userRepository.findByEmail(email) != null) {
+			return new ErrorResponse("EMAIL_EXISTS", "Esse email já está sendo usado");
 		}
 
 		// Create new user
@@ -45,6 +58,8 @@ public class AuthService {
 		user.setUsername(username);
 		user.setPassword(passwordEncoder.encode(password));
 		user.setUserGroup(userGroup); // Set user group
+		user.setEmail(email); // Set email
+		user.setSetor(setor); // Set setor
 		userRepository.save(user);
 
 		// Generate token
@@ -106,7 +121,8 @@ public class AuthService {
 
 			// Converter para DTOs para não expor senhas
 			List<UserDTO> userDTOs = users.stream()
-					.map(user -> new UserDTO(user.getId(), user.getUsername(), user.getUserGroup()))
+					.map(user -> new UserDTO(user.getId(), user.getUsername(), user.getUserGroup(), user.getEmail(),
+							user.getSetor()))
 					.collect(Collectors.toList());
 
 			return userDTOs;

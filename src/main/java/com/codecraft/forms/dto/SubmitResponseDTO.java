@@ -6,6 +6,7 @@ public class SubmitResponseDTO {
 	private Long formId;
 	private String userIdentifier;
 	private String userGroup;
+	private String userEmpresa;
 	private List<QuestionResponseDTO> responses;
 
 	public Long getFormId() {
@@ -30,6 +31,14 @@ public class SubmitResponseDTO {
 
 	public void setUserGroup(String userGroup) {
 		this.userGroup = userGroup;
+	}
+
+	public String getUserEmpresa() {
+		return userEmpresa;
+	}
+
+	public void setUserEmpresa(String userEmpresa) {
+		this.userEmpresa = userEmpresa;
 	}
 
 	public List<QuestionResponseDTO> getResponses() {

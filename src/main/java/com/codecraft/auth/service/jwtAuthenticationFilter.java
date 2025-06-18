@@ -28,19 +28,33 @@ public class jwtAuthenticationFilter extends OncePerRequestFilter {
 		String token = null;
 		String username = null;
 
+		System.out.println("🔐 JWT Filter - Processing request to: " + request.getRequestURI());
+
 		if (authHeader != null && authHeader.startsWith("Bearer ")) {
 			token = authHeader.substring(7);
+			System.out.println("🎫 JWT Token found: " + token.substring(0, Math.min(20, token.length())) + "...");
 			try {
 				username = jwtUtil.getUsernameFromToken(token);
+				System.out.println("👤 Username extracted from token: '" + username + "'");
 			} catch (Exception e) {
+				System.out.println("❌ JWT token parsing error: " + e.getMessage());
 				logger.error("JWT token parsing error: " + e.getMessage());
 			}
+		} else {
+			System.out.println("🚫 No Authorization header or invalid format");
 		}
 		if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-			if (jwtUtil.validateToken(token) && !jwtUtil.isTokenExpired(token)) {
+			boolean isValid = jwtUtil.validateToken(token);
+			boolean isExpired = jwtUtil.isTokenExpired(token);
+			System.out.println("🔍 Token validation: valid=" + isValid + ", expired=" + isExpired);
+
+			if (isValid && !isExpired) {
 				UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(username, null,
 						new ArrayList<>());
 				SecurityContextHolder.getContext().setAuthentication(authToken);
+				System.out.println("✅ Authentication set for user: " + username);
+			} else {
+				System.out.println("❌ Token validation failed or expired");
 			}
 		}
 		filterChain.doFilter(request, response);

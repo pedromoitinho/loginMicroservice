@@ -28,8 +28,9 @@ public class AuthController {
 
 	@PostMapping("/register")
 	public ResponseEntity<?> register(@RequestParam String username, @RequestParam String password,
-			@RequestParam(required = false) String userGroup) {
-		Object result = authService.register(username, password, userGroup);
+			@RequestParam(required = false) String userGroup, @RequestParam(required = false) String email,
+			@RequestParam String setor) {
+		Object result = authService.register(username, password, userGroup, email, setor);
 
 		if (result instanceof AuthResponse) {
 			return ResponseEntity.ok(result);
@@ -54,7 +55,8 @@ public class AuthController {
 		if (authentication != null && authentication.isAuthenticated()) {
 			User user = authService.getUserByUsername(authentication.getName());
 			if (user != null) {
-				return ResponseEntity.ok(new UserDTO(user.getId(), user.getUsername(), user.getUserGroup()));
+				return ResponseEntity.ok(
+						new UserDTO(user.getId(), user.getUsername(), user.getUserGroup(), user.getEmail(), user.getSetor()));
 			}
 			return ResponseEntity.ok(new UserDTO(null, authentication.getName(), null));
 		}

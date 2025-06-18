@@ -9,6 +9,8 @@ import com.codecraft.auth.entity.User;
 public interface UserRepository extends JpaRepository<User, Long> {
 	User findByUsername(String username);
 
+	User findByEmail(String email);
+
 	// Delete user by username
 	void deleteByUsername(String username);
 

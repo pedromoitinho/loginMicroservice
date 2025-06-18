@@ -17,6 +17,28 @@ public class User {
 	@Column(nullable = false, unique = true)
 	private String username;
 
+	@Column(nullable = true)
+	private String setor;
+
+	@Column(nullable = true, unique = true)
+	private String email;
+
+	public String getSetor() {
+		return setor;
+	}
+
+	public void setSetor(String setor) {
+		this.setor = setor;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
 	@Column(nullable = false)
 	private String password;
 

@@ -92,15 +92,70 @@ public class FormController {
 	@SuppressWarnings("CallToPrintStackTrace")
 	public ResponseEntity<?> getFormStatistics(@PathVariable Long formId, Authentication auth) {
 		try {
-			formService.getFormDetails(formId, auth.getName());
-
-			// Use FormService for better question type handling
-			FormStatisticsDTO stats = formService.getFormStatistics(formId);
+			// Use ResponseService which has proper permission checking for analytics
+			FormStatisticsDTO stats = responseService.getFormStatistics(formId, auth.getName());
 
 			return ResponseEntity.ok(stats);
 		} catch (Exception e) {
 			e.printStackTrace(); // Add stack trace for better debugging
 			return ResponseEntity.badRequest().body(new ErrorResponse("STATS_ERROR", e.getMessage()));
+		}
+	}
+
+	// Obter setores disponíveis para um formulário (protegido)
+	@GetMapping("/{formId}/sectors")
+	public ResponseEntity<?> getFormSectors(@PathVariable Long formId, Authentication auth) {
+		try {
+			List<String> sectors = responseService.getFormSectors(formId, auth.getName());
+			return ResponseEntity.ok(sectors);
+		} catch (Exception e) {
+			return ResponseEntity.badRequest().body(new ErrorResponse("SECTORS_ERROR", e.getMessage()));
+		}
+	}
+
+	// Obter estatísticas filtradas por setor (protegido)
+	@GetMapping("/{formId}/statistics/sector/{setor}")
+	@SuppressWarnings("CallToPrintStackTrace")
+	public ResponseEntity<?> getFormStatisticsBySetor(@PathVariable Long formId, @PathVariable String setor,
+			Authentication auth) {
+		try {
+			// Decode the sector parameter in case it contains special characters
+			String decodedSetor = java.net.URLDecoder.decode(setor, "UTF-8");
+
+			FormStatisticsDTO stats = responseService.getFormStatisticsFiltered(formId, auth.getName(), decodedSetor);
+			return ResponseEntity.ok(stats);
+		} catch (Exception e) {
+			e.printStackTrace(); // Add stack trace for better debugging
+			return ResponseEntity.badRequest().body(new ErrorResponse("STATS_SETOR_ERROR", e.getMessage()));
+		}
+	}
+
+	// Obter empresas disponíveis para um formulário (protegido)
+	@GetMapping("/{formId}/empresas")
+	public ResponseEntity<?> getFormEmpresas(@PathVariable Long formId, Authentication auth) {
+		try {
+			List<String> empresas = responseService.getFormEmpresas(formId, auth.getName());
+			return ResponseEntity.ok(empresas);
+		} catch (Exception e) {
+			return ResponseEntity.badRequest().body(new ErrorResponse("EMPRESAS_ERROR", e.getMessage()));
+		}
+	}
+
+	// Obter estatísticas filtradas por empresa (protegido)
+	@GetMapping("/{formId}/statistics/empresa/{empresa}")
+	@SuppressWarnings("CallToPrintStackTrace")
+	public ResponseEntity<?> getFormStatisticsByEmpresa(@PathVariable Long formId, @PathVariable String empresa,
+			Authentication auth) {
+		try {
+			// Decode the empresa parameter in case it contains special characters
+			String decodedEmpresa = java.net.URLDecoder.decode(empresa, "UTF-8");
+
+			FormStatisticsDTO stats = responseService.getFormStatisticsFilteredByEmpresa(formId, auth.getName(),
+					decodedEmpresa);
+			return ResponseEntity.ok(stats);
+		} catch (Exception e) {
+			e.printStackTrace(); // Add stack trace for better debugging
+			return ResponseEntity.badRequest().body(new ErrorResponse("STATS_EMPRESA_ERROR", e.getMessage()));
 		}
 	}
 
@@ -127,7 +182,18 @@ public class FormController {
 			FormDTO form = formService.getFormDetails(formId, auth.getName());
 			return ResponseEntity.ok(form);
 		} catch (Exception e) {
-			return ResponseEntity.notFound().build();
+			// Check if it's an access denied error
+			if (e.getMessage() != null && e.getMessage().contains("Acesso negado")) {
+				return ResponseEntity.status(403)
+						.body(new ErrorResponse("ACCESS_DENIED", "Access denied to view this form"));
+			}
+
+			// Check if it's a not found error
+			if (e.getMessage() != null && e.getMessage().contains("não encontrado")) {
+				return ResponseEntity.notFound().build();
+			}
+
+			return ResponseEntity.badRequest().body(new ErrorResponse("FETCH_ERROR", e.getMessage()));
 		}
 	}
 
@@ -155,6 +221,13 @@ public class FormController {
 		} catch (Exception e) {
 			System.err.println("❌ Error updating form: " + e.getMessage());
 			e.printStackTrace();
+
+			// Check if it's an access denied error
+			if (e.getMessage() != null && e.getMessage().contains("Acesso negado")) {
+				return ResponseEntity.status(403)
+						.body(new ErrorResponse("ACCESS_DENIED", "Access denied to update this form"));
+			}
+
 			return ResponseEntity.badRequest().body(new ErrorResponse("UPDATE_ERROR", e.getMessage()));
 		}
 	}
@@ -168,6 +241,13 @@ public class FormController {
 		} catch (Exception e) {
 			// Log the error instead of printing stack trace
 			logger.error("Error deleting form with ID {}: {}", formId, e.getMessage(), e);
+
+			// Check if it's an access denied error
+			if (e.getMessage() != null && e.getMessage().contains("Acesso negado")) {
+				return ResponseEntity.status(403)
+						.body(new ErrorResponse("ACCESS_DENIED", "Access denied to delete this form"));
+			}
+
 			return ResponseEntity.badRequest().body(new ErrorResponse("DELETE_ERROR", e.getMessage()));
 		}
 	}

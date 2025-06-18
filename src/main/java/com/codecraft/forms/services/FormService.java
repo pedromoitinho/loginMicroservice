@@ -246,7 +246,8 @@ public class FormService {
 	@Transactional
 	public FormDTO updateForm(Long formId, UpdateFormDTO updateFormDTO, String username) {
 		System.out.println("🔄 FormService.updateForm called with formId: " + formId);
-		System.out.println("📝 UpdateFormDTO received: " + updateFormDTO);
+		System.out.println("� Username received: '" + username + "'");
+		System.out.println("�📝 UpdateFormDTO received: " + updateFormDTO);
 
 		if (updateFormDTO.getQuestions() != null) {
 			System.out.println("📋 Questions in update request: " + updateFormDTO.getQuestions().size());
@@ -264,11 +265,19 @@ public class FormService {
 		Form form = formRepository.findById(formId)
 				.orElseThrow(() -> new RuntimeException("Formulário não encontrado"));
 
+		System.out.println("📋 Form found: ID=" + form.getId() + ", Title='" + form.getTitle() + "'");
+		System.out.println(
+				"👑 Form created by: " + (form.getCreatedBy() != null ? form.getCreatedBy().getUsername() : "null"));
+		System.out.println("🔐 Permission check: username='" + username + "', isAdmin=" + "admin".equals(username));
+
 		// Verificar se o usuário é o dono do formulário ou admin
 		if (!"admin".equals(username)
 				&& (form.getCreatedBy() == null || !form.getCreatedBy().getUsername().equals(username))) {
+			System.out.println("❌ Access denied for user: " + username);
 			throw new RuntimeException("Acesso negado");
 		}
+
+		System.out.println("✅ Access granted for user: " + username);
 
 		// Atualizar campos básicos
 		if (updateFormDTO.getTitle() != null) {
@@ -284,61 +293,81 @@ public class FormService {
 			form.setAllowedGroups(updateFormDTO.getAllowedGroups());
 		}
 
-		// Atualizar perguntas se fornecidas
+		// Atualizar perguntas se fornecidas - SAFE UPDATE STRATEGY
 		if (updateFormDTO.getQuestions() != null) {
-			System.out.println("🗑️ Clearing existing questions from form");
-			// Remover perguntas antigas explicitamente
-			form.getQuestions().clear();
+			System.out.println("� Safely updating questions for form with existing responses");
 
-			// Força o flush para garantir que as perguntas antigas sejam deletadas
-			formRepository.saveAndFlush(form);
+			// Check if this form has existing responses
+			Long responseCount = userResponseRepository.countByForm(form);
+			boolean hasResponses = responseCount > 0;
 
-			System.out.println("➕ Adding new questions to form");
-			// Adicionar novas perguntas
-			for (int i = 0; i < updateFormDTO.getQuestions().size(); i++) {
-				CreateQuestionDTO questionDTO = updateFormDTO.getQuestions().get(i);
-				System.out.println(String.format("  Creating question %d: '%s' (type: %s)",
-						i + 1, questionDTO.getQuestionText(), questionDTO.getType()));
+			System.out.println(String.format("📊 Form has %d existing responses", responseCount));
 
-				Question question = new Question();
-				question.setQuestionText(questionDTO.getQuestionText());
+			if (hasResponses) {
+				// SAFE UPDATE: Only update basic form fields, don't modify questions structure
+				System.out.println("⚠️ Form has responses - limited update mode");
+				System.out.println("ℹ️ Questions structure cannot be modified for forms with existing responses");
+				System.out.println("✅ Only form title, description, and allowed groups can be updated");
 
-				// Ensure type is properly set - first set the enum which will automatically set
-				// questionType
-				try {
-					question.setType(questionDTO.getType());
-					System.out.println(String.format("  ✅ Question type set to '%s'", question.getType()));
-				} catch (Exception e) {
-					System.out.println(
-							String.format("  ⚠️ Error setting question type: %s, defaulting to TEXT", e.getMessage()));
-					question.setType(com.codecraft.forms.type.QuestionType.TEXT);
-				}
+				// Skip question updates to prevent foreign key violations
+				// Only the basic form fields (title, description, allowedGroups, isActive) will
+				// be updated
+			} else {
+				// FULL UPDATE: No responses exist, safe to replace questions
+				System.out.println("🆕 Form has no responses - full update mode enabled");
+				System.out.println("🗑️ Clearing existing questions from form");
 
-				question.setQuestionOrder(questionDTO.getQuestionOrder());
-				question.setForm(form);
+				// Clear and recreate questions (safe because no responses exist)
+				form.getQuestions().clear();
+				formRepository.saveAndFlush(form);
 
-				System.out.println(
-						String.format("  ✅ Question created - ID: null, Text: '%s', Type: %s, TypeString: %s",
-								question.getQuestionText(), question.getType(), question.getQuestionType()));
+				System.out.println("➕ Adding new questions to form");
+				// Adicionar novas perguntas
+				for (int i = 0; i < updateFormDTO.getQuestions().size(); i++) {
+					CreateQuestionDTO questionDTO = updateFormDTO.getQuestions().get(i);
+					System.out.println(String.format("  Creating question %d: '%s' (type: %s)",
+							i + 1, questionDTO.getQuestionText(), questionDTO.getType()));
 
-				if (questionDTO.getOptions() != null && questionDTO.getOptions().size() > 0) {
-					System.out.println(String.format("    Adding %d options to question %d",
-							questionDTO.getOptions().size(), i + 1));
-					for (int j = 0; j < questionDTO.getOptions().size(); j++) {
-						QuestionOption option = new QuestionOption();
-						option.setText(questionDTO.getOptions().get(j));
-						option.setOptionOrder(j);
-						option.setQuestion(question);
-						question.getOptions().add(option);
-						System.out.println(String.format("      Option %d: '%s'", j + 1, questionDTO.getOptions().get(j)));
+					Question question = new Question();
+					question.setQuestionText(questionDTO.getQuestionText());
+
+					// Ensure type is properly set - first set the enum which will automatically set
+					// questionType
+					try {
+						question.setType(questionDTO.getType());
+						System.out.println(String.format("  ✅ Question type set to '%s'", question.getType()));
+					} catch (Exception e) {
+						System.out.println(
+								String.format("  ⚠️ Error setting question type: %s, defaulting to TEXT", e.getMessage()));
+						question.setType(com.codecraft.forms.type.QuestionType.TEXT);
 					}
-				} else {
-					System.out.println(String.format("    Question %d has no options", i + 1));
-				}
-				form.getQuestions().add(question);
 
-				System.out.println(String.format("    ➕ Question %d added to form. Form now has %d questions",
-						i + 1, form.getQuestions().size()));
+					question.setQuestionOrder(questionDTO.getQuestionOrder());
+					question.setForm(form);
+
+					System.out.println(
+							String.format("  ✅ Question created - ID: null, Text: '%s', Type: %s, TypeString: %s",
+									question.getQuestionText(), question.getType(), question.getQuestionType()));
+
+					if (questionDTO.getOptions() != null && questionDTO.getOptions().size() > 0) {
+						System.out.println(String.format("    Adding %d options to question %d",
+								questionDTO.getOptions().size(), i + 1));
+						for (int j = 0; j < questionDTO.getOptions().size(); j++) {
+							QuestionOption option = new QuestionOption();
+							option.setText(questionDTO.getOptions().get(j));
+							option.setOptionOrder(j);
+							option.setQuestion(question);
+							question.getOptions().add(option);
+							System.out.println(String.format("      Option %d: '%s'", j + 1, questionDTO.getOptions().get(j)));
+						}
+					} else {
+						System.out.println(String.format("    Question %d has no options", i + 1));
+					}
+					form.getQuestions().add(question);
+
+					System.out.println(String.format("    ➕ Question %d added to form. Form now has %d questions",
+							i + 1, form.getQuestions().size()));
+				}
 			}
 		}
 
@@ -457,9 +486,69 @@ public class FormService {
 
 		// Get total responses count for this form
 		int totalResponses = userResponseRepository.countByForm(form).intValue();
+
+		// Use bulk queries to get all data at once instead of N+1 queries
+		List<Object[]> bulkOptionCounts = userResponseRepository.bulkCountResponsesByOption(formId);
+		List<Object[]> bulkTextCounts = userResponseRepository.bulkCountResponsesByText(formId);
+		List<Object[]> bulkOptionGroupCounts = userResponseRepository.bulkCountResponsesByOptionAndGroup(formId);
+		List<Object[]> bulkTextGroupCounts = userResponseRepository.bulkCountResponsesByTextAndGroup(formId);
+
+		// Create maps for quick lookup
+		Map<Long, Map<String, Integer>> optionCountsByQuestion = new LinkedHashMap<>();
+		Map<Long, Map<String, Integer>> textCountsByQuestion = new LinkedHashMap<>();
+		Map<Long, Map<String, Map<String, Integer>>> optionGroupCountsByQuestion = new LinkedHashMap<>();
+		Map<Long, Map<String, Map<String, Integer>>> textGroupCountsByQuestion = new LinkedHashMap<>();
+		Map<Long, List<String>> textAnswersByQuestion = new LinkedHashMap<>();
+
+		// Process bulk option counts
+		for (Object[] row : bulkOptionCounts) {
+			Long questionId = (Long) row[0];
+			String optionText = (String) row[1];
+			Long count = (Long) row[2];
+
+			optionCountsByQuestion.computeIfAbsent(questionId, k -> new LinkedHashMap<>())
+					.put(optionText, count.intValue());
+		}
+
+		// Process bulk text counts
+		for (Object[] row : bulkTextCounts) {
+			Long questionId = (Long) row[0];
+			String responseText = (String) row[1];
+			Long count = (Long) row[2];
+
+			textCountsByQuestion.computeIfAbsent(questionId, k -> new LinkedHashMap<>())
+					.put(responseText, count.intValue());
+			textAnswersByQuestion.computeIfAbsent(questionId, k -> new ArrayList<>())
+					.add(responseText);
+		}
+
+		// Process bulk option group counts
+		for (Object[] row : bulkOptionGroupCounts) {
+			Long questionId = (Long) row[0];
+			String optionText = (String) row[1];
+			String userGroup = (String) row[2];
+			Long count = (Long) row[3];
+
+			optionGroupCountsByQuestion.computeIfAbsent(questionId, k -> new LinkedHashMap<>())
+					.computeIfAbsent(optionText, k -> new LinkedHashMap<>())
+					.put(userGroup, count.intValue());
+		}
+
+		// Process bulk text group counts
+		for (Object[] row : bulkTextGroupCounts) {
+			Long questionId = (Long) row[0];
+			String responseText = (String) row[1];
+			String userGroup = (String) row[2];
+			Long count = (Long) row[3];
+
+			textGroupCountsByQuestion.computeIfAbsent(questionId, k -> new LinkedHashMap<>())
+					.computeIfAbsent(responseText, k -> new LinkedHashMap<>())
+					.put(userGroup, count.intValue());
+		}
+
 		List<FormStatisticsDTO.QuestionStatisticsDTO> questionsAnalytics = new ArrayList<>();
 
-		// For each question, collect answer counts, text answers, and group breakdowns
+		// Process each question using the pre-loaded data
 		for (Question question : questions) {
 			Map<String, Integer> answerCounts = new LinkedHashMap<>();
 			Map<String, Map<String, Integer>> answerCountsByGroup = new LinkedHashMap<>();
@@ -469,76 +558,25 @@ public class FormService {
 					|| question.getQuestionType().equalsIgnoreCase("CHECKBOX")
 					|| question.getQuestionType().equalsIgnoreCase("RADIO")) {
 
-				// Get option-based counts with group breakdown
-				List<Object[]> optionCounts = userResponseRepository.countResponsesByOption(question.getId());
-				List<Object[]> optionGroupCounts = userResponseRepository.countResponsesByOptionAndGroup(question.getId());
-
-				// Process overall counts
-				for (Object[] row : optionCounts) {
-					String optionText = (String) row[0];
-					Long count = (Long) row[1];
-					answerCounts.put(optionText, count.intValue());
-				}
-
-				// Process group-based counts
-				for (Object[] row : optionGroupCounts) {
-					String optionText = (String) row[0];
-					String userGroup = (String) row[1];
-					Long count = (Long) row[2];
-
-					answerCountsByGroup.computeIfAbsent(optionText, k -> new LinkedHashMap<>())
-							.put(userGroup != null ? userGroup : "Sem grupo", count.intValue());
-				}
+				// Use pre-loaded data
+				answerCounts = optionCountsByQuestion.getOrDefault(question.getId(), new LinkedHashMap<>());
+				answerCountsByGroup = optionGroupCountsByQuestion.getOrDefault(question.getId(), new LinkedHashMap<>());
 
 			} else if (question.getQuestionType().equalsIgnoreCase("NUMBER")
 					|| question.getQuestionType().equalsIgnoreCase("RATING")) {
 
-				// Get text-based counts (numbers/ratings stored as text) with group breakdown
-				List<Object[]> textCounts = userResponseRepository.countResponsesByText(question.getId());
-				List<Object[]> textGroupCounts = userResponseRepository.countResponsesByTextAndGroup(question.getId());
-
-				// Process overall counts
-				for (Object[] row : textCounts) {
-					String responseText = (String) row[0];
-					Long count = (Long) row[1];
-					answerCounts.put(responseText, count.intValue());
-					textAnswers.add(responseText);
-				}
-
-				// Process group-based counts
-				for (Object[] row : textGroupCounts) {
-					String responseText = (String) row[0];
-					String userGroup = (String) row[1];
-					Long count = (Long) row[2];
-
-					answerCountsByGroup.computeIfAbsent(responseText, k -> new LinkedHashMap<>())
-							.put(userGroup != null ? userGroup : "Sem grupo", count.intValue());
-				}
+				// Use pre-loaded data
+				answerCounts = textCountsByQuestion.getOrDefault(question.getId(), new LinkedHashMap<>());
+				answerCountsByGroup = textGroupCountsByQuestion.getOrDefault(question.getId(), new LinkedHashMap<>());
+				textAnswers = textAnswersByQuestion.getOrDefault(question.getId(), new ArrayList<>());
 
 			} else if (question.getQuestionType().equalsIgnoreCase("TEXT")
 					|| question.getQuestionType().equalsIgnoreCase("TEXTAREA")) {
 
-				// For text questions, get both unique responses and their counts
-				List<Object[]> textCounts = userResponseRepository.countResponsesByText(question.getId());
-				List<Object[]> textGroupCounts = userResponseRepository.countResponsesByTextAndGroup(question.getId());
-
-				// Process overall counts and populate both answerCounts and textAnswers
-				for (Object[] row : textCounts) {
-					String responseText = (String) row[0];
-					Long count = (Long) row[1];
-					answerCounts.put(responseText, count.intValue());
-					textAnswers.add(responseText);
-				}
-
-				// Process group-based counts for text answers
-				for (Object[] row : textGroupCounts) {
-					String responseText = (String) row[0];
-					String userGroup = (String) row[1];
-					Long count = (Long) row[2];
-
-					answerCountsByGroup.computeIfAbsent(responseText, k -> new LinkedHashMap<>())
-							.put(userGroup != null ? userGroup : "Sem grupo", count.intValue());
-				}
+				// Use pre-loaded data
+				answerCounts = textCountsByQuestion.getOrDefault(question.getId(), new LinkedHashMap<>());
+				answerCountsByGroup = textGroupCountsByQuestion.getOrDefault(question.getId(), new LinkedHashMap<>());
+				textAnswers = textAnswersByQuestion.getOrDefault(question.getId(), new ArrayList<>());
 			}
 
 			// Convert to FormStatisticsDTO.QuestionStatisticsDTO
