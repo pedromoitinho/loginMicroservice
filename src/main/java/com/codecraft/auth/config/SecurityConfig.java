@@ -45,12 +45,8 @@ public class SecurityConfig {
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
-		// Allow only your frontend origins for security
-		configuration.setAllowedOriginPatterns(Arrays.asList(
-				"http://localhost:3000", // local dev
-				"https://vitaisconsultoria.com/", // replace with your deployed frontend URL
-				"https://login-microservice-janaina-631514261dc7.herokuapp.com" // backend itself (optional)
-		));
+		// Allow all origins (no CORS limits)
+		configuration.setAllowedOriginPatterns(Arrays.asList("*"));
 		configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "accept",
 				"Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
